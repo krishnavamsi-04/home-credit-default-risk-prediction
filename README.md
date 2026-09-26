@@ -43,11 +43,20 @@ Full write-up: [`docs/phase1_documentation.md`](docs/Phase1_Documentation.md)
 
 ### Phase 2 — Modeling & Explainability ✅ Complete
 Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
+
 - [x] Random Forest
 - [x] XGBoost
 - [x] Hyperparameter tuning (RandomizedSearchCV)
 - [x] K-fold cross-validation
-- [ ] SHAP explainability (global + local)
+- [x] SHAP explainability (global + local)
+
+**SHAP explainability (global):**
+Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its predictions, not just that it performs well.
+
+- **`EXT_SOURCE_1/2/3` rank in the top 5 most important features** — confirming these external credit scores are the model's strongest signals, as expected. Direction makes business sense: low scores push predictions toward default, high scores push toward repayment.
+- **`AMT_GOODS_PRICE` and `AMT_CREDIT`** (loan size) rank highly — larger loans carry more risk exposure, which the model correctly picked up on.
+- **`DAYS_BIRTH` / `DAYS_EMPLOYED`** (age, employment stability) behave intuitively — longer employment and older age reduce predicted risk.
+- **Fairness note:** `CODE_GENDER_M` appears in the top 10 features, with male applicants (value=1) pushed toward higher predicted risk. This reflects a pattern in the historical training data, not a deliberate design choice. **A real deployment would need to audit this before production use** — using gender as a risk factor in lending decisions raises fairness and legal concerns regardless of its historical predictiveness. This is flagged here as a known limitation rather than something to act on silently.
 
 **Model comparison (test set):**
 | Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) |
@@ -62,7 +71,7 @@ Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 **Tuning:** Used `RandomizedSearchCV` (20 combinations, 3-fold CV, optimizing for ROC-AUC) on XGBoost. Best parameters: `max_depth=5`, `learning_rate=0.05`, `n_estimators=300`, `subsample=0.9`, `colsample_bytree=0.8`. This improved ROC-AUC from 0.7489 → 0.7605 while matching the baseline's recall (0.67) — a genuine improvement in ranking ability with no cost to the defaulter-catch rate.
 
 **Cross-validation (5-fold, tuned XGBoost, full dataset):**
-Mean ROC-AUC: **0.758** | Std deviation: **0.0032** (scores ranged 0.75–0.76 across folds)
+Mean ROC-AUC: **0.7581** | Std deviation: **0.0050** (scores ranged 0.749–0.764 across folds)
 
 Tight, consistent scores across all 5 folds confirm the 0.7605 test-set result is a stable, reliable estimate of model performance — not an artifact of one particular train/test split.
 
@@ -87,14 +96,14 @@ Python, pandas, scikit-learn, XGBoost, SHAP, FastAPI, Streamlit
 home-credit-default-risk-prediction/
 ├── README.md
 ├── notebooks/
-│   └── phase1_eda_baseline.ipynb
+│   ├── phase1_eda_baseline.ipynb
+│   └── phase2_modeling.ipynb
 ├── docs/
-│   └── phase1_documentation.md
+│   ├── Phase1_Documentation.md
+│   └── Phase2_Documentation.md
 └── requirements.txt
 ```
 
----
-
 ## Status
 
-🚧 Actively being built — Phase 1 complete. Phase 2 in progress: Random Forest, XGBoost, and hyperparameter tuning done (best ROC-AUC: 0.7605). Cross-validation and SHAP explainability remaining
+🚧 Actively being built — Phase 1 and Phase 2 complete (final model: tuned XGBoost, ROC-AUC 0.7605, cross-validated). Phase 3 (deployment) in progress.
