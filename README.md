@@ -41,8 +41,8 @@ Full write-up: [`docs/phase1_documentation.md`](docs/phase1_documentation.md)
 
 **Why this baseline matters:** it establishes the floor every later model must beat, and the recall-over-precision tradeoff was a deliberate choice — in credit risk, missing a real defaulter costs the lender far more than a false alarm.
 
-### Phase 2 — Modeling & Explainability (In Progress)
-
+### Phase 2 — Modeling & Explainability ✅ Complete
+Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 - [x] Random Forest
 - [x] XGBoost
 - [x] Hyperparameter tuning (RandomizedSearchCV)
