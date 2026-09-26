@@ -92,4 +92,4 @@ home-credit-default-risk-prediction/
 
 ## Status
 
-🚧 Actively being built — Phase 1 complete, Phase 2 in progress.
+🚧 Actively being built — Phase 1 complete. Phase 2 in progress: Random Forest, XGBoost, and hyperparameter tuning done (best ROC-AUC: 0.7605). Cross-validation and SHAP explainability remaining
