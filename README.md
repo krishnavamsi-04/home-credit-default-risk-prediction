@@ -37,17 +37,29 @@ Lenders can't manually review every loan application. This project builds a mode
 | Recall (defaulters) | 0.67 |
 | Precision (defaulters) | 0.16 |
 
-Full write-up: [`docs/phase1_documentation.md`](docs/Phase1_Documentation.md)
+Full write-up: [`docs/phase1_documentation.md`](docs/phase1_documentation.md)
 
 **Why this baseline matters:** it establishes the floor every later model must beat, and the recall-over-precision tradeoff was a deliberate choice — in credit risk, missing a real defaulter costs the lender far more than a false alarm.
 
 ### Phase 2 — Modeling & Explainability (In Progress)
 
-- [ ] Random Forest
-- [ ] XGBoost
-- [ ] Hyperparameter tuning (GridSearchCV/Optuna)
+- [x] Random Forest
+- [x] XGBoost
+- [x] Hyperparameter tuning (RandomizedSearchCV)
 - [ ] K-fold cross-validation
 - [ ] SHAP explainability (global + local)
+
+**Model comparison (test set):**
+| Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) |
+|---|---|---|---|
+| Logistic Regression (baseline) | 0.7475 | 0.67 | 0.16 |
+| Random Forest (default) | 0.7282 | 0.00* | 0.53* |
+| XGBoost (default) | 0.7489 | 0.62 | 0.17 |
+| **XGBoost (tuned)** | **0.7605** | **0.67** | 0.17 |
+
+*Random Forest's default 0.5 threshold produced near-zero recall despite `class_weight='balanced'`. Unlike Logistic Regression, where class weighting directly reweights the loss function, Random Forest only reweights split quality within each tree — the minority-class signal gets diluted when averaging predictions across 100 trees. Adjusting the decision threshold to 0.15 partially recovered recall (0.34) but still underperformed the baseline. **Finding:** class imbalance handling behaves inconsistently across model architectures — a technique that works for one model type isn't guaranteed to transfer to another.
+
+**Tuning:** Used `RandomizedSearchCV` (20 combinations, 3-fold CV, optimizing for ROC-AUC) on XGBoost. Best parameters: `max_depth=5`, `learning_rate=0.05`, `n_estimators=300`, `subsample=0.9`, `colsample_bytree=0.8`. This improved ROC-AUC from 0.7489 → 0.7605 while matching the baseline's recall (0.67) — a genuine improvement in ranking ability with no cost to the defaulter-catch rate.
 
 ### Phase 3 — Deployment (Planned)
 
