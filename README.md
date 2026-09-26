@@ -46,7 +46,7 @@ Full write-up: [`docs/phase1_documentation.md`](docs/phase1_documentation.md)
 - [x] Random Forest
 - [x] XGBoost
 - [x] Hyperparameter tuning (RandomizedSearchCV)
-- [ ] K-fold cross-validation
+- [x] K-fold cross-validation
 - [ ] SHAP explainability (global + local)
 
 **Model comparison (test set):**
@@ -60,6 +60,11 @@ Full write-up: [`docs/phase1_documentation.md`](docs/phase1_documentation.md)
 *Random Forest's default 0.5 threshold produced near-zero recall despite `class_weight='balanced'`. Unlike Logistic Regression, where class weighting directly reweights the loss function, Random Forest only reweights split quality within each tree — the minority-class signal gets diluted when averaging predictions across 100 trees. Adjusting the decision threshold to 0.15 partially recovered recall (0.34) but still underperformed the baseline. **Finding:** class imbalance handling behaves inconsistently across model architectures — a technique that works for one model type isn't guaranteed to transfer to another.
 
 **Tuning:** Used `RandomizedSearchCV` (20 combinations, 3-fold CV, optimizing for ROC-AUC) on XGBoost. Best parameters: `max_depth=5`, `learning_rate=0.05`, `n_estimators=300`, `subsample=0.9`, `colsample_bytree=0.8`. This improved ROC-AUC from 0.7489 → 0.7605 while matching the baseline's recall (0.67) — a genuine improvement in ranking ability with no cost to the defaulter-catch rate.
+
+**Cross-validation (5-fold, tuned XGBoost, full dataset):**
+Mean ROC-AUC: **0.758** | Std deviation: **0.0032** (scores ranged 0.75–0.76 across folds)
+
+Tight, consistent scores across all 5 folds confirm the 0.7605 test-set result is a stable, reliable estimate of model performance — not an artifact of one particular train/test split.
 
 ### Phase 3 — Deployment (Planned)
 
