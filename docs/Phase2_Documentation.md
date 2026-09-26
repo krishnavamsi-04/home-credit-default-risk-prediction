@@ -106,9 +106,9 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 ```
 
 **Result:**
-- Fold scores ranged narrowly: **0.75 – 0.76**
-- **Mean ROC-AUC: 0.758**
-- **Standard deviation: 0.0032**
+- Fold scores ranged narrowly: **0.749 – 0.764**
+- **Mean ROC-AUC: 0.7581**
+- **Standard deviation: 0.0050**
 
 **Interpretation:** The very small standard deviation (0.0032) indicates the model's performance is stable and consistent regardless of which 20% of applicants end up in the test set. This confirms 0.7605 is a reliable estimate of real-world performance, not a fluke of one particular split.
 
