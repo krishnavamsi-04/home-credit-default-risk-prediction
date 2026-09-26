@@ -37,7 +37,7 @@ Lenders can't manually review every loan application. This project builds a mode
 | Recall (defaulters) | 0.67 |
 | Precision (defaulters) | 0.16 |
 
-Full write-up: [`docs/phase1_documentation.md`](docs/phase1_documentation.md)
+Full write-up: [`docs/phase1_documentation.md`](docs/Phase1_Documentation.md)
 
 **Why this baseline matters:** it establishes the floor every later model must beat, and the recall-over-precision tradeoff was a deliberate choice — in credit risk, missing a real defaulter costs the lender far more than a false alarm.
 
