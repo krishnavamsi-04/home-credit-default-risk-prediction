@@ -1,0 +1,13 @@
+pandas
+numpy
+scikit-learn
+xgboost
+shap
+joblib
+matplotlib
+seaborn
+
+# Phase 3 (deployment) — not yet used
+# fastapi
+# uvicorn
+# streamlit
