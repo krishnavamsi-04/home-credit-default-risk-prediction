@@ -52,12 +52,13 @@ object:  16 columns (categorical/text — needed encoding)
 | Step | Action | Reasoning |
 |---|---|---|
 | Drop >50% missing (property detail columns) | Dropped 40 columns | Too sparse to impute reliably; low information value |
+| Drop remaining columns with high-gap, low-value data | Dropped 8 more: `FLOORSMAX_AVG/MODE/MEDI`, `YEARS_BEGINEXPLUATATION_AVG/MODE/MEDI`, `TOTALAREA_MODE`, `EMERGENCYSTATE_MODE` | Still ~48-50% missing, building-related, and not strong predictors |
 | `EXT_SOURCE_1/2/3` | Filled with **median** | Median is robust to skew, unlike mean; kept because these are strong predictors despite missingness |
 | `OCCUPATION_TYPE`, `NAME_TYPE_SUITE` | Filled with `"Unknown"` category | The absence of this data may itself be meaningful (e.g. unemployed applicants); safer than guessing a job |
 | `AMT_REQ_CREDIT_BUREAU_*` (credit inquiry counts) | Filled with **0** | Missing almost certainly means "no inquiry was made" — filling with median would be factually wrong here |
 | Remaining small-gap numeric columns (<1,021 missing rows each) | Filled with **median** | Negligible volume; median is a safe default |
 
-**Result:** 307,511 rows × 82 columns → further cleaned to **74 columns**, **zero missing values**.
+**Result:** 307,511 rows × 122 columns → 82 after the first drop (40 columns) → **74** after the second drop (8 columns) and all imputation, with zero missing values.
 
 ---
 
@@ -70,8 +71,7 @@ object:  16 columns (categorical/text — needed encoding)
 | **One-hot encoding** (`pd.get_dummies`, `drop_first=True`) | `NAME_CONTRACT_TYPE`, `CODE_GENDER`, `FLAG_OWN_CAR`, `FLAG_OWN_REALTY`, `NAME_TYPE_SUITE`, `NAME_INCOME_TYPE`, `NAME_EDUCATION_TYPE`, `NAME_FAMILY_STATUS`, `NAME_HOUSING_TYPE`, `WEEKDAY_APPR_PROCESS_START` (≤10 categories each) | Low cardinality — one-hot keeps column count manageable. `drop_first=True` avoids the dummy-variable trap for binary columns |
 | **Frequency encoding** (category → its % frequency in data) | `OCCUPATION_TYPE` (19 categories), `ORGANIZATION_TYPE` (58 categories) | One-hot would have created 58+ mostly-empty sparse columns; frequency encoding compresses this into one informative numeric column |
 
-**Result:** 307,511 rows × **103 fully numeric columns**.
-
+**Result:** 307,511 rows × 103 fully numeric columns. This includes `TARGET` and `SK_ID_CURR`, which are removed before modeling, so the model trains on **101 features**.
 ---
 
 ## 6. Train/Test Split
@@ -111,7 +111,7 @@ Actual: 1           1,615            3,350
 ```
 
 ### Interpretation
-- **ROC-AUC of 0.7475** is a solid baseline for this dataset — public Kaggle solutions using extensive multi-table feature engineering reach ~0.78–0.80, so this single-table logistic baseline is competitive.
+- **ROC-AUC of 0.7475** is a reasonable baseline for a single-table logistic model. Top Kaggle solutions scored higher, but they used many additional tables and heavy feature engineering, so they are not a fair comparison.
 - **Recall for defaulters = 0.67:** the model correctly identified 3,350 of 4,965 actual defaulters.
 - **Precision for defaulters = 0.16:** many false alarms (17,541 non-defaulters flagged as risky).
 - **Why this tradeoff is acceptable here:** In credit risk, missing an actual defaulter (false negative) is typically far more costly to a lender than an unnecessary manual review (false positive). Prioritizing recall over precision on the minority class is the defensible choice.
@@ -121,7 +121,7 @@ Actual: 1           1,615            3,350
 
 ## 9. Phase 1 Deliverables (Complete)
 
-- ✅ Cleaned dataset: 307,511 rows × 103 numeric columns, zero missing values
+- ✅ Cleaned dataset: 307,511 rows × 103 numeric columns (101 model features after removing `TARGET` and `SK_ID_CURR`), zero missing values
 - ✅ Documented, reasoned cleaning decisions (not blanket drop/fill rules)
 - ✅ Fully encoded categorical features (one-hot + frequency encoding)
 - ✅ Stratified train/test split, verified balanced
