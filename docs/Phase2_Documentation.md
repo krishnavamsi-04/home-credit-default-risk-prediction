@@ -27,6 +27,8 @@ Beat the Phase 1 baseline (Logistic Regression, ROC-AUC = 0.7475) using more pow
 
 **Threshold adjustment attempt:** Lowering the decision threshold from 0.5 to 0.15 (flagging anyone with ≥15% predicted default probability as risky) partially recovered recall to 0.34 — better, but still well below the Logistic Regression baseline's 0.67.
 
+*Note:* The 0.15 threshold was chosen by inspecting results on the test set, so it is an illustration of the effect, not a properly tuned value. A tuned threshold should be selected on validation data.
+
 **Conclusion:** Random Forest, as configured, does not beat the baseline on the metric that matters most for this problem (recall on defaulters). This is a genuine, documented finding: **class imbalance handling behaves inconsistently across model architectures** — a technique effective for one model type isn't guaranteed to transfer to another. Rather than force Random Forest to compete, focus shifted to XGBoost.
 
 ---
@@ -83,7 +85,7 @@ subsample: 0.9
 colsample_bytree: 0.8
 ```
 
-**Best cross-validated ROC-AUC (on training folds): 0.7551**
+**Best cross-validated ROC-AUC (mean score on the validation folds, computed inside the training set): 0.7551**
 
 **Final evaluation on held-out test set (never seen during tuning):**
 
@@ -93,7 +95,7 @@ colsample_bytree: 0.8
 | Recall (defaulters) | **0.67** |
 | Precision (defaulters) | 0.17 |
 
-**Result:** Tuning improved ROC-AUC from 0.7489 → 0.7605 (a genuine ~1.3 point gain) while *matching* the baseline's recall exactly (0.67) — meaning the tuned model catches just as many real defaulters as the original baseline, with better overall ranking ability and no added cost in missed defaulters.
+**Result:** Tuning improved ROC-AUC from 0.7489 → 0.7605 (about +1.2 points over default XGBoost, and about +1.3 points over the Logistic Regression baseline of 0.7475). It also *matched* the baseline's recall exactly (0.67), meaning the tuned model catches just as many real defaulters as the baseline, with better overall ranking ability and no added cost in missed defaulters.
 
 ---
 
@@ -109,9 +111,8 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 - Fold scores ranged narrowly: **0.749 – 0.764**
 - **Mean ROC-AUC: 0.7581**
 - **Standard deviation: 0.0050**
-
-**Interpretation:** The very small standard deviation (0.0032) indicates the model's performance is stable and consistent regardless of which 20% of applicants end up in the test set. This confirms 0.7605 is a reliable estimate of real-world performance, not a fluke of one particular split.
-
+- 
+**Interpretation:** The very small standard deviation (0.0050) indicates the model's performance is stable and consistent regardless of which 20% of applicants end up in the test set. This confirms 0.7605 is a reliable estimate of real-world performance, not a fluke of one particular split.
 ---
 
 ## 6. SHAP Explainability
@@ -149,7 +150,7 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 - ✅ Random Forest trained and evaluated — documented underperformance and the architectural reason for it
 - ✅ XGBoost trained with correctly-calculated `scale_pos_weight`
 - ✅ Hyperparameter tuning via RandomizedSearchCV (20 combinations × 3-fold CV)
-- ✅ Final model validated via 5-fold cross-validation (mean 0.758, std 0.0032 — stable)
+- ✅ Final model validated via 5-fold cross-validation (mean 0.758, std 0.0050 — stable)
 - ✅ SHAP global explainability, including an explicit fairness observation
 
 **Final model carried into Phase 3:** Tuned XGBoost (`max_depth=5, learning_rate=0.05, n_estimators=300, subsample=0.9, colsample_bytree=0.8`), ROC-AUC 0.7605, Recall 0.67.
