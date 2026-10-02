@@ -48,7 +48,7 @@ Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 - [x] XGBoost
 - [x] Hyperparameter tuning (RandomizedSearchCV)
 - [x] K-fold cross-validation
-- [x] SHAP explainability (global + local)
+- [x] SHAP explainability (global)
 
 **SHAP explainability (global):**
 Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its predictions, not just that it performs well.
