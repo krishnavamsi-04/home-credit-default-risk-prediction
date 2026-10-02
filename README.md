@@ -53,7 +53,7 @@ Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 **SHAP explainability (global):**
 Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its predictions, not just that it performs well.
 
-- **`EXT_SOURCE_1/2/3` rank in the top 5 most important features** — confirming these external credit scores are the model's strongest signals, as expected. Direction makes business sense: low scores push predictions toward default, high scores push toward repayment.
+- **`EXT_SOURCE_1/2/3` are among the most influential features** — confirming these external credit scores are strong signals, as expected.
 - **`AMT_GOODS_PRICE` and `AMT_CREDIT`** (loan size) rank highly — larger loans carry more risk exposure, which the model correctly picked up on.
 - **`DAYS_BIRTH` / `DAYS_EMPLOYED`** (age, employment stability) behave intuitively — longer employment and older age reduce predicted risk.
 - **Fairness note:** `CODE_GENDER_M` appears in the top 10 features, with male applicants (value=1) pushed toward higher predicted risk. This reflects a pattern in the historical training data, not a deliberate design choice. **A real deployment would need to audit this before production use** — using gender as a risk factor in lending decisions raises fairness and legal concerns regardless of its historical predictiveness. This is flagged here as a known limitation rather than something to act on silently.
@@ -84,6 +84,22 @@ Tight, consistent scores across all 5 folds confirm the 0.7605 test-set result i
 
 ---
 
+## How to Reproduce
+
+1. Download `application_train.csv` from the [Kaggle competition page](https://www.kaggle.com/c/home-credit-default-risk/data) (a Kaggle account is required).
+2. Notebooks were developed on Google Colab. Phase 1 reads the CSV from `/content/` and saves the processed splits (`X_train.pkl`, etc.) to Google Drive. Phase 2 loads them from Drive. Update the paths if you run locally.
+3. Install dependencies: `pip install -r requirements.txt`
+4. Run `notebooks/phase1_eda_baseline.ipynb`, then `notebooks/phase2_modeling.ipynb`.
+
+All random seeds are fixed (`random_state=42`).
+
+## Known Limitations
+
+- **Fairness:** `CODE_GENDER_M` is among the influential features. Using a gender-correlated feature in real lending decisions would require a formal fairness audit.
+- **Preprocessing leakage (being fixed):** In the current version, median imputation values and frequency-encoding maps were computed on the full dataset before the train/test split. The effect is expected to be small, but test data influenced those values. This is being corrected by learning all preprocessing statistics from the training set only, and results will be re-measured. *(Update or remove this bullet once the fix is done.)*
+- **Single table only:** Only `application_train.csv` is used. The other Home Credit tables (bureau, previous applications) are not included.
+- **Low precision:** Precision for defaulters is about 0.17, so many flagged applicants would not actually default. This is a deliberate recall-over-precision tradeoff, but a real system would need a manual-review process.
+
 ## Tech Stack
 
 Python, pandas, scikit-learn, XGBoost, SHAP, FastAPI, Streamlit
@@ -106,4 +122,6 @@ home-credit-default-risk-prediction/
 
 ## Status
 
-🚧 Actively being built — Phase 1 and Phase 2 complete (final model: tuned XGBoost, ROC-AUC 0.7605, cross-validated). Phase 3 (deployment) in progress.
+## Status
+
+🚧 Phase 1 and Phase 2 complete (final model: tuned XGBoost, ROC-AUC 0.7605, 5-fold CV mean 0.758). Phase 3 (deployment) is next.
