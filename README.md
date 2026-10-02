@@ -75,6 +75,16 @@ Mean ROC-AUC: **0.7581** | Std deviation: **0.0050** (scores ranged 0.749–0.76
 
 Tight, consistent scores across all 5 folds confirm the 0.7605 test-set result is a stable, reliable estimate of model performance — not an artifact of one particular train/test split.
 
+### Leakage audit & corrected pipeline
+After Phase 2, I audited the pipeline and found that medians and frequency maps were learned before the split. I rebuilt preprocessing so that the split happens first, every statistic is learned from the training set only, and the test set is aligned to the training columns. The same applicants are in train and test as before, so old and new results are directly comparable. All learned values (`medians`, `freq_maps`, `train_columns`, `config`) and the final model are saved as artifacts for the Phase 3 API.
+
+| Model | ROC-AUC (original) | ROC-AUC (corrected) |
+|---|---|---|
+| Logistic Regression | 0.7475 | 0.7476 |
+| XGBoost (tuned) | 0.7605 | 0.7611 |
+
+5-fold CV on the training set (corrected pipeline): mean 0.7561, std 0.0013.
+
 ### Phase 3 — Deployment (Planned)
 
 - [ ] FastAPI prediction endpoint
@@ -96,7 +106,7 @@ All random seeds are fixed (`random_state=42`).
 ## Known Limitations
 
 - **Fairness:** `CODE_GENDER_M` is among the influential features. Using a gender-correlated feature in real lending decisions would require a formal fairness audit.
-- **Preprocessing leakage (being fixed):** In the current version, median imputation values and frequency-encoding maps were computed on the full dataset before the train/test split. The effect is expected to be small, but test data influenced those values. This is being corrected by learning all preprocessing statistics from the training set only, and results will be re-measured. *(Update or remove this bullet once the fix is done.)*
+- **Preprocessing leakage (found and fixed):** In the first version, median imputation values and frequency-encoding maps were computed on the full dataset before the train/test split. This was corrected in `phase1b_leakage_fix.ipynb`, where all learned statistics come from the training set only. Re-measured impact: ROC-AUC changed from 0.7475 to 0.7476 (Logistic Regression) and from 0.7605 to 0.7611 (tuned XGBoost), so the leakage had no meaningful effect at this dataset size. The cross-validation score (0.7561) still uses preprocessing fitted on all of the training set; a full fix would refit it inside each fold with a Pipeline.
 - **Single table only:** Only `application_train.csv` is used. The other Home Credit tables (bureau, previous applications) are not included.
 - **Low precision:** Precision for defaulters is about 0.17, so many flagged applicants would not actually default. This is a deliberate recall-over-precision tradeoff, but a real system would need a manual-review process.
 
