@@ -126,7 +126,7 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 | Feature | Why it matters |
 |---|---|
 | `EXT_SOURCE_3`, `EXT_SOURCE_2`, `EXT_SOURCE_1` | Top 5 most important — external credit bureau scores. Low values push predictions toward default; high values push toward repayment. Confirms these known strong predictors were used correctly and the model learned the expected real-world direction. |
-| `AMT_GOODS_PRICE`, `AMT_CREDIT` | Larger loan amounts increase predicted risk — sensible, since bigger loans carry more exposure. |
+| `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment*, the opposite direction to `AMT_CREDIT`. The two features are almost redundant (correlation 0.987 on the training set), so the model likely uses the gap between them (credit above the price of the goods) rather than either feature alone. Individually, their SHAP values should not be read as "bigger loan = safer". |
 | `DAYS_BIRTH`, `DAYS_EMPLOYED` | Longer employment history and older age reduce predicted risk — consistent with real-world credit intuition (stability signals lower risk). |
 
 **Fairness observation:** `CODE_GENDER_M` appears among the top 10 most influential features, with male applicants (encoded as 1) associated with higher predicted default risk. This is a pattern learned from the historical training data, not something intentionally engineered. **This is flagged as a limitation, not resolved in this project** — a real production deployment of a credit model would need a formal fairness audit before using gender-correlated features to influence lending decisions, regardless of their historical predictive power. Documenting this openly is itself part of responsible ML practice.
