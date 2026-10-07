@@ -121,13 +121,17 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 
 **Method:** `shap.TreeExplainer` on the tuned XGBoost model, computing SHAP values for the test set to see how each feature pushes individual predictions toward "default" or "repay."
 
-**Global findings (top features):**
+**Global findings (ranked by mean |SHAP|, 5,000-row test sample, corrected pipeline):**
 
-| Feature | Why it matters |
+| Feature (rank) | What the plot shows |
 |---|---|
-| `EXT_SOURCE_3`, `EXT_SOURCE_2`, `EXT_SOURCE_1` | Top 5 most important — external credit bureau scores. Low values push predictions toward default; high values push toward repayment. Confirms these known strong predictors were used correctly and the model learned the expected real-world direction. |
-| `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment*, the opposite direction to `AMT_CREDIT`. The two features are almost redundant (correlation 0.987 on the training set), so the model likely uses the gap between them (credit above the price of the goods) rather than either feature alone. Individually, their SHAP values should not be read as "bigger loan = safer". |
-| `DAYS_BIRTH`, `DAYS_EMPLOYED` | Longer employment history and older age reduce predicted risk — consistent with real-world credit intuition (stability signals lower risk). |
+| `EXT_SOURCE_3` (1), `EXT_SOURCE_2` (2), `EXT_SOURCE_1` (5) | External credit scores. Low values push predictions toward default, high values toward repayment — the expected real-world direction. |
+| `AMT_CREDIT` (4) | Larger credit amounts push predictions toward default. |
+| `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment* — the opposite direction to `AMT_CREDIT`. The two features are strongly correlated, so the model likely uses the gap between them rather than either alone (correlation to be confirmed). |
+| `DAYS_EMPLOYED` (7) | Longer employment (more negative values) lowers predicted risk. |
+| `DAYS_BIRTH` (8) | [Fill in after checking the dependence plot.] |
+
+**Local example:** For the highest-risk applicant in the sample, very low scores on all three `EXT_SOURCE` features contribute about +1.9 log-odds of the final 2.76. Because of `scale_pos_weight`, model scores are useful for ranking but are not calibrated default probabilities.
 
 **Fairness observation:** `CODE_GENDER_M` appears among the top 10 most influential features, with male applicants (encoded as 1) associated with higher predicted default risk. This is a pattern learned from the historical training data, not something intentionally engineered. **This is flagged as a limitation, not resolved in this project** — a real production deployment of a credit model would need a formal fairness audit before using gender-correlated features to influence lending decisions, regardless of their historical predictive power. Documenting this openly is itself part of responsible ML practice.
 
