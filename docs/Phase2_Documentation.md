@@ -9,6 +9,8 @@ Beat the Phase 1 baseline (Logistic Regression, ROC-AUC = 0.7475) using more pow
 
 **Models tried, in order:** Random Forest → XGBoost → Hyperparameter-tuned XGBoost.
 
+**Note on pipelines:** Sections 2–5 describe runs on the original preprocessing. After a leakage audit, the final model was retrained on a corrected pipeline (see `notebooks/phase1b_leakage_fix.ipynb`). The summary in Section 7 shows both.
+
 ---
 
 ## 2. Random Forest
@@ -107,19 +109,22 @@ colsample_bytree: 0.8
 cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 ```
 
-**Result:**
+**Result (original pipeline):**
 - Fold scores ranged narrowly: **0.749 – 0.764**
 - **Mean ROC-AUC: 0.7581**
 - **Standard deviation: 0.0050**
-- 
+
 **Interpretation:** The very small standard deviation (0.0050) indicates the model's performance is stable and consistent regardless of which 20% of applicants end up in the test set. This confirms 0.7605 is a reliable estimate of real-world performance, not a fluke of one particular split.
+
+**Re-run on the corrected pipeline:** 5-fold stratified CV on the training set only (so the test set stays untouched), using the same hyperparameters. Fold scores ranged 0.754 – 0.758, **mean 0.7561, std 0.0013**. The test-set AUC (0.7611) sits slightly above the CV mean, which is normal for a single holdout. *Caveat:* the preprocessing statistics were fitted on all of the training set, so each validation fold influenced them slightly. Refitting them inside each fold with a scikit-learn Pipeline would remove this.
+
 ---
 
 ## 6. SHAP Explainability
 
 **Why this step matters:** A model that performs well but can't be explained is a liability in credit risk — regulators and lenders need to know *why* a model denies someone credit, not just that it's statistically accurate.
 
-**Method:** `shap.TreeExplainer` on the tuned XGBoost model, computing SHAP values for the test set to see how each feature pushes individual predictions toward "default" or "repay."
+**Method:** `shap.TreeExplainer` on the final tuned XGBoost model (corrected pipeline), computing SHAP values on a 5,000-row random sample of the test set to see how each feature pushes individual predictions toward "default" or "repay."
 
 **Global findings (ranked by mean |SHAP|, 5,000-row test sample, corrected pipeline):**
 
@@ -127,26 +132,26 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 |---|---|
 | `EXT_SOURCE_3` (1), `EXT_SOURCE_2` (2), `EXT_SOURCE_1` (5) | External credit scores. Low values push predictions toward default, high values toward repayment — the expected real-world direction. |
 | `AMT_CREDIT` (4) | Larger credit amounts push predictions toward default. |
-| `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment* — the opposite direction to `AMT_CREDIT`. The two features are strongly correlated, so the model likely uses the gap between them rather than either alone (correlation to be confirmed). |
+| `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment*, the opposite direction to `AMT_CREDIT`. The two features are almost redundant (correlation 0.987 on the training set), so the model likely uses the gap between them (credit above the price of the goods) rather than either feature alone. |
 | `DAYS_EMPLOYED` (7) | Longer employment (more negative values) lowers predicted risk. |
-| `DAYS_BIRTH` (8) | [Fill in after checking the dependence plot.] |
 
 **Local example:** For the highest-risk applicant in the sample, very low scores on all three `EXT_SOURCE` features contribute about +1.9 log-odds of the final 2.76. Because of `scale_pos_weight`, model scores are useful for ranking but are not calibrated default probabilities.
 
-**Fairness observation:** `CODE_GENDER_M` appears among the top 10 most influential features, with male applicants (encoded as 1) associated with higher predicted default risk. This is a pattern learned from the historical training data, not something intentionally engineered. **This is flagged as a limitation, not resolved in this project** — a real production deployment of a credit model would need a formal fairness audit before using gender-correlated features to influence lending decisions, regardless of their historical predictive power. Documenting this openly is itself part of responsible ML practice.
-
+**Fairness observation:** `CODE_GENDER_M` ranks 6th among the most influential features, with male applicants (encoded as 1) pushed toward higher predicted default risk. This is a pattern learned from the historical training data, not something intentionally engineered. **This is flagged as a limitation, not resolved in this project.** A real production deployment of a credit model would need a formal fairness audit before using gender-correlated features to influence lending decisions, regardless of their historical predictive power. Simply dropping the column would not be enough, since other features can act as proxies. Documenting this openly is itself part of responsible ML practice.
 ---
 
 ## 7. Phase 2 Summary
 
 **Full model comparison:**
 
-| Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) |
-|---|---|---|---|
-| Logistic Regression (baseline) | 0.7475 | 0.67 | 0.16 |
-| Random Forest (default) | 0.7282 | 0.00* | 0.53* |
-| XGBoost (default) | 0.7489 | 0.62 | 0.17 |
-| **XGBoost (tuned)** | **0.7605** | **0.67** | 0.17 |
+| Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) | Pipeline |
+|---|---|---|---|---|
+| Logistic Regression (baseline) | 0.7475 | 0.67 | 0.16 | original |
+| Logistic Regression (baseline) | 0.7476 | 0.67 | 0.16 | corrected |
+| Random Forest (default) | 0.7282 | 0.00* | 0.53* | original |
+| XGBoost (default) | 0.7489 | 0.62 | 0.17 | original |
+| XGBoost (tuned) | 0.7605 | 0.67 | 0.17 | original |
+| **XGBoost (tuned), final model** | **0.7611** | **0.67** | **0.17** | **corrected** |
 
 *See Section 2 — Random Forest's precision/recall at default threshold are not meaningful due to near-zero positive predictions.
 
@@ -154,9 +159,9 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 - ✅ Random Forest trained and evaluated — documented underperformance and the architectural reason for it
 - ✅ XGBoost trained with correctly-calculated `scale_pos_weight`
 - ✅ Hyperparameter tuning via RandomizedSearchCV (20 combinations × 3-fold CV)
-- ✅ Final model validated via 5-fold cross-validation (mean 0.758, std 0.0050 — stable)
-- ✅ SHAP global explainability, including an explicit fairness observation
+- ✅ Final model validated via 5-fold cross-validation (original: mean 0.758, std 0.0050; corrected pipeline: mean 0.7561, std 0.0013)
+- ✅ SHAP global explainability plus one local example, including an explicit fairness observation
 
-**Final model carried into Phase 3:** Tuned XGBoost (`max_depth=5, learning_rate=0.05, n_estimators=300, subsample=0.9, colsample_bytree=0.8`), ROC-AUC 0.7605, Recall 0.67.
+**Final model carried into Phase 3:** Tuned XGBoost (`max_depth=5, learning_rate=0.05, n_estimators=300, subsample=0.9, colsample_bytree=0.8`) trained on the corrected pipeline: ROC-AUC 0.7611, recall 0.67, precision 0.17. The model and all learned preprocessing artifacts (`medians`, `freq_maps`, `train_columns`, `config`) are saved for the API.
 
-**Next (Phase 3):** Save this model, build a FastAPI prediction endpoint, a Streamlit frontend, deploy both free-tier, and write a model card documenting assumptions, limitations (including the fairness note above), and intended use.
+**Next (Phase 3):** Build a FastAPI prediction endpoint that reuses the saved artifacts, a Streamlit frontend, deploy both free-tier, and write a model card documenting assumptions, limitations (including the fairness note and the fact that model scores are not calibrated probabilities), and intended use.
