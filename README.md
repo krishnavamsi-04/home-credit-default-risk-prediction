@@ -25,7 +25,7 @@ Lenders can't manually review every loan application. This project builds a mode
 ### Phase 1 — Data Understanding, Cleaning & Baseline ✅ Complete
 
 - **EDA:** Identified severe class imbalance (92/8), mapped missing-value patterns, checked data types
-- **Cleaning:** Dropped 40 low-value, high-missing columns (property details); kept `EXT_SOURCE_1/2/3` despite missingness because they're known strong predictors; used context-aware imputation (0 for "no inquiry made" columns, median for continuous features, "Unknown" category for missing categoricals)
+- **Cleaning:** Dropped 48 low-value, high-missing property/building columns (40 with over 50% missing, plus 8 more with roughly 47–50% missing); kept `EXT_SOURCE_1/2/3` despite missingness because they're known strong predictors; used context-aware imputation (0 for "no inquiry made" columns, median for continuous features, "Unknown" category for missing categoricals)
 - **Encoding:** One-hot encoding for low-cardinality categoricals, frequency encoding for high-cardinality ones (`ORGANIZATION_TYPE`, `OCCUPATION_TYPE`) to avoid sparse one-hot bloat
 - **Split:** Stratified 80/20 train/test split to preserve class ratio
 - **Baseline model:** Logistic Regression with feature scaling and `class_weight='balanced'`
@@ -59,18 +59,22 @@ Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its pred
 - **Fairness note:** `CODE_GENDER_M` ranks 6th, with male applicants pushed toward higher predicted risk. This reflects a pattern in the historical data, not a deliberate design choice. A real deployment would need a fairness audit before use, and simply dropping the column would not be enough, since other features can act as proxies.
   
 **Model comparison (test set):**
-| Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) |
-|---|---|---|---|
-| Logistic Regression (baseline) | 0.7475 | 0.67 | 0.16 |
-| Random Forest (default) | 0.7282 | 0.00* | 0.53* |
-| XGBoost (default) | 0.7489 | 0.62 | 0.17 |
-| **XGBoost (tuned)** | **0.7605** | **0.67** | 0.17 |
+| Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) | Pipeline |
+|---|---|---|---|---|
+| Logistic Regression (baseline) | 0.7475 | 0.67 | 0.16 | original |
+| Logistic Regression (baseline) | 0.7476 | 0.67 | 0.16 | corrected |
+| Random Forest (default) | 0.7282 | 0.00* | 0.53* | original |
+| XGBoost (default) | 0.7489 | 0.62 | 0.17 | original |
+| XGBoost (tuned) | 0.7605 | 0.67 | 0.17 | original |
+| **XGBoost (tuned), final model** | **0.7611** | **0.67** | **0.17** | **corrected** |
+
+"Original" means preprocessing statistics were learned before the split. "Corrected" means they were learned from the training set only (see the leakage audit below). Random Forest and default XGBoost were not re-run, because the leakage effect proved negligible.
 
 *Random Forest's default 0.5 threshold produced near-zero recall despite `class_weight='balanced'`. Unlike Logistic Regression, where class weighting directly reweights the loss function, Random Forest only reweights split quality within each tree — the minority-class signal gets diluted when averaging predictions across 100 trees. Adjusting the decision threshold to 0.15 partially recovered recall (0.34) but still underperformed the baseline. **Finding:** class imbalance handling behaves inconsistently across model architectures — a technique that works for one model type isn't guaranteed to transfer to another.
 
 **Tuning:** Used `RandomizedSearchCV` (20 combinations, 3-fold CV, optimizing for ROC-AUC) on XGBoost. Best parameters: `max_depth=5`, `learning_rate=0.05`, `n_estimators=300`, `subsample=0.9`, `colsample_bytree=0.8`. This improved ROC-AUC from 0.7489 → 0.7605 while matching the baseline's recall (0.67) — a genuine improvement in ranking ability with no cost to the defaulter-catch rate.
 
-**Cross-validation (5-fold, tuned XGBoost, full dataset):**
+**Cross-validation (original pipeline: 5-fold, tuned XGBoost, full dataset):**
 Mean ROC-AUC: **0.7581** | Std deviation: **0.0050** (scores ranged 0.749–0.764 across folds)
 
 Tight, consistent scores across all 5 folds confirm the 0.7605 test-set result is a stable, reliable estimate of model performance — not an artifact of one particular train/test split.
@@ -132,4 +136,4 @@ home-credit-default-risk-prediction/
 
 ## Status
 
-🚧 Phase 1 and Phase 2 complete (final model: tuned XGBoost, ROC-AUC 0.7605, 5-fold CV mean 0.758). Phase 3 (deployment) is next.
+🚧 Phase 1 and Phase 2 complete. Final model: tuned XGBoost on the corrected pipeline, ROC-AUC 0.7611 on the test set (5-fold CV mean 0.7561). Phase 3 (deployment) is next.
