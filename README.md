@@ -53,11 +53,11 @@ Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 **SHAP explainability (global):**
 Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its predictions, not just that it performs well.
 
-- **`EXT_SOURCE_1/2/3` are among the most influential features** — confirming these external credit scores are strong signals, as expected.
+- **`EXT_SOURCE_1/2/3` rank 5th, 2nd and 1st** — external credit scores are the strongest signals. Low scores push toward default, high scores toward repayment.
 - **`AMT_CREDIT` (4th)** pushes toward default as it grows, while **`AMT_GOODS_PRICE` (3rd)** pushes the opposite way. The two are almost redundant (correlation 0.987), so the model likely uses the gap between them. Their SHAP values should be read together, not one at a time.
-- **`DAYS_BIRTH` / `DAYS_EMPLOYED`** (age, employment stability) behave intuitively — longer employment and older age reduce predicted risk.
-- **Fairness note:** `CODE_GENDER_M` appears in the top 10 features, with male applicants (value=1) pushed toward higher predicted risk. This reflects a pattern in the historical training data, not a deliberate design choice. **A real deployment would need to audit this before production use** — using gender as a risk factor in lending decisions raises fairness and legal concerns regardless of its historical predictiveness. This is flagged here as a known limitation rather than something to act on silently.
-
+- **`DAYS_EMPLOYED` (7th)**: longer employment lowers predicted risk.  
+- **Fairness note:** `CODE_GENDER_M` ranks 6th, with male applicants pushed toward higher predicted risk. This reflects a pattern in the historical data, not a deliberate design choice. A real deployment would need a fairness audit before use, and simply dropping the column would not be enough, since other features can act as proxies.
+  
 **Model comparison (test set):**
 | Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) |
 |---|---|---|---|
@@ -129,8 +129,6 @@ home-credit-default-risk-prediction/
 │   └── Phase2_Documentation.md
 └── requirements.txt
 ```
-
-## Status
 
 ## Status
 
