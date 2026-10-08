@@ -52,7 +52,7 @@ object:  16 columns (categorical/text — needed encoding)
 | Step | Action | Reasoning |
 |---|---|---|
 | Drop >50% missing (property detail columns) | Dropped 40 columns | Too sparse to impute reliably; low information value |
-| Drop remaining columns with high-gap, low-value data | Dropped 8 more: `FLOORSMAX_AVG/MODE/MEDI`, `YEARS_BEGINEXPLUATATION_AVG/MODE/MEDI`, `TOTALAREA_MODE`, `EMERGENCYSTATE_MODE` | Still ~48-50% missing, building-related, and not strong predictors |
+| Drop remaining columns with high-gap, low-value data | Dropped 8 more: `FLOORSMAX_AVG/MODE/MEDI`, `YEARS_BEGINEXPLUATATION_AVG/MODE/MEDI`, `TOTALAREA_MODE`, `EMERGENCYSTATE_MODE` | Still ~47-50% missing, building-related, and not strong predictors |
 | `EXT_SOURCE_1/2/3` | Filled with **median** | Median is robust to skew, unlike mean; kept because these are strong predictors despite missingness |
 | `OCCUPATION_TYPE`, `NAME_TYPE_SUITE` | Filled with `"Unknown"` category | The absence of this data may itself be meaningful (e.g. unemployed applicants); safer than guessing a job |
 | `AMT_REQ_CREDIT_BUREAU_*` (credit inquiry counts) | Filled with **0** | Missing almost certainly means "no inquiry was made" — filling with median would be factually wrong here |
@@ -72,6 +72,7 @@ object:  16 columns (categorical/text — needed encoding)
 | **Frequency encoding** (category → its % frequency in data) | `OCCUPATION_TYPE` (19 categories), `ORGANIZATION_TYPE` (58 categories) | One-hot would have created 58+ mostly-empty sparse columns; frequency encoding compresses this into one informative numeric column |
 
 **Result:** 307,511 rows × 103 fully numeric columns. This includes `TARGET` and `SK_ID_CURR`, which are removed before modeling, so the model trains on **101 features**.
+
 ---
 
 ## 6. Train/Test Split
@@ -81,7 +82,7 @@ object:  16 columns (categorical/text — needed encoding)
 - **Result (verified identical ratios):**
   - Train: 246,008 rows — 91.93% / 8.07%
   - Test: 61,503 rows — 91.93% / 8.07%
-
+    
 ---
 
 ## 7. Baseline Model — Logistic Regression
@@ -129,3 +130,11 @@ Actual: 1           1,615            3,350
 - ✅ Baseline established: **ROC-AUC = 0.7475**, Recall (defaulters) = 0.67
 
 **Next (Phase 2):** Random Forest and XGBoost, hyperparameter tuning, cross-validation, and SHAP explainability — all benchmarked against this 0.7475 baseline.
+
+---
+
+## 10. Later Update: Leakage Audit
+
+The pipeline described above computed medians and frequency maps on the full dataset before the train/test split. This was later corrected in `notebooks/phase1b_leakage_fix.ipynb`, where the split happens first and every statistic is learned from the training set only. Everything above, including the Section 8 results, is from the original run.
+
+**Corrected baseline (same applicants in train and test):** ROC-AUC 0.7476, recall 0.67, precision 0.16. Confusion matrix: 39,007 / 17,531 / 1,618 / 3,347. The change from 0.7475 is negligible.
