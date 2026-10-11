@@ -56,7 +56,7 @@ object:  16 columns (categorical/text — needed encoding)
 | `EXT_SOURCE_1/2/3` | Filled with **median** | Median is robust to skew, unlike mean; kept because these are strong predictors despite missingness |
 | `OCCUPATION_TYPE`, `NAME_TYPE_SUITE` | Filled with `"Unknown"` category | The absence of this data may itself be meaningful (e.g. unemployed applicants); safer than guessing a job |
 | `AMT_REQ_CREDIT_BUREAU_*` (credit inquiry counts) | Filled with **0** | Missing almost certainly means "no inquiry was made" — filling with median would be factually wrong here |
-| Remaining small-gap numeric columns (<1,021 missing rows each) | Filled with **median** | Negligible volume; median is a safe default |
+| Remaining small-gap numeric columns (up to 1,021 missing rows each) | Filled with **median** | Negligible volume; median is a safe default |
 
 **Result:** 307,511 rows × 122 columns → 82 after the first drop (40 columns) → **74** after the second drop (8 columns) and all imputation, with zero missing values.
 
