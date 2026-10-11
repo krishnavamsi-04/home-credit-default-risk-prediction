@@ -134,10 +134,20 @@ cv_scores = cross_val_score(best_xgb, X, y, cv=5, scoring='roc_auc', n_jobs=-1)
 | `AMT_CREDIT` (4) | Larger credit amounts push predictions toward default. |
 | `AMT_GOODS_PRICE` (3) | Larger goods prices push predictions toward *repayment*, the opposite direction to `AMT_CREDIT`. The two features are almost redundant (correlation 0.987 on the training set), so the model likely uses the gap between them (credit above the price of the goods) rather than either feature alone. |
 | `DAYS_EMPLOYED` (7) | Longer employment (more negative values) lowers predicted risk. |
+| `DAYS_BIRTH` (8) | The relationship with age is not linear (inverted U). Averaging SHAP values by age quartile: ages 21–34 average −0.04, 34–43 average +0.10 (toward default), 43–54 average +0.04, and 54–69 average −0.12 (toward repayment). Predicted risk peaks in the mid-30s to early 40s and falls toward both ends of the age range; the dependence plot (`shap_days_birth.png`) shows the lowest values for the youngest (under about 27) and oldest applicants. |
 
-**Local example:** For the highest-risk applicant in the sample, very low scores on all three `EXT_SOURCE` features contribute about +1.9 log-odds of the final 2.76. Because of `scale_pos_weight`, model scores are useful for ranking but are not calibrated default probabilities.
+**Local example:** For the highest-risk applicant in the sample, very low scores on all three `EXT_SOURCE` features contribute about +1.9 log-odds of the final 2.76.
+
+![SHAP summary plot](shap_summary.png)
+
+![SHAP local example](shap_local_example.png)
+
+![DAYS_BIRTH dependence plot](shap_days_birth.png)
+
+**Reading the scores:** SHAP values and model outputs are in log-odds. Because of `scale_pos_weight`, the model's average output (the SHAP base value) is close to 0 in log-odds, which corresponds to about 0.5 as a probability, instead of the true 8% default rate. The scores rank applicants well but are not default probabilities.
 
 **Fairness observation:** `CODE_GENDER_M` ranks 6th among the most influential features, with male applicants (encoded as 1) pushed toward higher predicted default risk. This is a pattern learned from the historical training data, not something intentionally engineered. **This is flagged as a limitation, not resolved in this project.** A real production deployment of a credit model would need a formal fairness audit before using gender-correlated features to influence lending decisions, regardless of their historical predictive power. Simply dropping the column would not be enough, since other features can act as proxies. Documenting this openly is itself part of responsible ML practice.
+
 ---
 
 ## 7. Phase 2 Summary
