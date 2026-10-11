@@ -48,15 +48,24 @@ Full write-up: [`docs/Phase2_Documentation.md`](docs/Phase2_Documentation.md)
 - [x] XGBoost
 - [x] Hyperparameter tuning (RandomizedSearchCV)
 - [x] K-fold cross-validation
-- [x] SHAP explainability (global)
+- [x] SHAP explainability (global + one local example)
 
-**SHAP explainability (global):**
-Ran `TreeExplainer` on the tuned XGBoost model to verify *why* it makes its predictions, not just that it performs well.
+**SHAP explainability:**
+Ran `TreeExplainer` on the final tuned XGBoost model (corrected pipeline) using a 5,000-row sample of the test set, to verify *why* it makes its predictions, not just that it performs well.
 
 - **`EXT_SOURCE_1/2/3` rank 5th, 2nd and 1st** — external credit scores are the strongest signals. Low scores push toward default, high scores toward repayment.
 - **`AMT_CREDIT` (4th)** pushes toward default as it grows, while **`AMT_GOODS_PRICE` (3rd)** pushes the opposite way. The two are almost redundant (correlation 0.987), so the model likely uses the gap between them. Their SHAP values should be read together, not one at a time.
-- **`DAYS_EMPLOYED` (7th)**: longer employment lowers predicted risk.  
+- **`DAYS_EMPLOYED` (7th)**: longer employment lowers predicted risk.
+- **`DAYS_BIRTH` (8th)**: the effect of age is not linear. Predicted risk peaks for applicants in their mid-30s to early 40s and falls toward both the youngest and the oldest applicants.
 - **Fairness note:** `CODE_GENDER_M` ranks 6th, with male applicants pushed toward higher predicted risk. This reflects a pattern in the historical data, not a deliberate design choice. A real deployment would need a fairness audit before use, and simply dropping the column would not be enough, since other features can act as proxies.
+
+![SHAP summary plot](docs/shap_summary.png)
+
+*Global view: each dot is one applicant. Position shows whether the feature pushed the prediction toward default (right) or repayment (left); color shows the feature's value.*
+
+![SHAP local example](docs/shap_local_example.png)
+
+*Local view: the highest-risk applicant in the sample. Very low `EXT_SOURCE` scores drive most of the prediction.*
   
 **Model comparison (test set):**
 | Model | ROC-AUC | Recall (defaulters) | Precision (defaulters) | Pipeline |
@@ -89,7 +98,7 @@ After Phase 2, I audited the pipeline and found that medians and frequency maps 
 
 5-fold CV on the training set (corrected pipeline): mean 0.7561, std 0.0013.
 
-### Phase 3 — Deployment (Planned)
+### Phase 3 — Deployment (Next)
 
 - [ ] FastAPI prediction endpoint
 - [ ] Streamlit frontend
@@ -100,12 +109,12 @@ After Phase 2, I audited the pipeline and found that medians and frequency maps 
 
 ## How to Reproduce
 
-1. Download `application_train.csv` from the [Kaggle competition page](https://www.kaggle.com/c/home-credit-default-risk/data) (a Kaggle account is required).
-2. Notebooks were developed on Google Colab. Phase 1 reads the CSV from `/content/` and saves the processed splits (`X_train.pkl`, etc.) to Google Drive. Phase 2 loads them from Drive. Update the paths if you run locally.
+1. Download `application_train.csv` from the [Kaggle competition page](https://www.kaggle.com/c/home-credit-default-risk/data) (a Kaggle account is required). Check that it has 307,511 rows.
+2. Notebooks were developed on Google Colab. Update the file paths if you run locally.
 3. Install dependencies: `pip install -r requirements.txt`
-4. Run `notebooks/phase1_eda_baseline.ipynb`, then `notebooks/phase2_modeling.ipynb`.
+4. Run the notebooks in order: `phase1_eda_baseline.ipynb`, `phase2_modeling.ipynb`, then `phase1b_leakage_fix.ipynb`. The last one is self-contained: it reads the raw CSV and produces the final model and the files in `artifacts/`.
 
-All random seeds are fixed (`random_state=42`).
+All random seeds are fixed (`random_state=42`). The saved model and preprocessing artifacts in `artifacts/` reproduce the reported test ROC-AUC of 0.7611.
 
 ## Known Limitations
 
@@ -113,6 +122,7 @@ All random seeds are fixed (`random_state=42`).
 - **Preprocessing leakage (found and fixed):** In the first version, median imputation values and frequency-encoding maps were computed on the full dataset before the train/test split. This was corrected in `phase1b_leakage_fix.ipynb`, where all learned statistics come from the training set only. Re-measured impact: ROC-AUC changed from 0.7475 to 0.7476 (Logistic Regression) and from 0.7605 to 0.7611 (tuned XGBoost), so the leakage had no meaningful effect at this dataset size. The cross-validation score (0.7561) still uses preprocessing fitted on all of the training set; a full fix would refit it inside each fold with a Pipeline.
 - **Single table only:** Only `application_train.csv` is used. The other Home Credit tables (bureau, previous applications) are not included.
 - **Low precision:** Precision for defaulters is about 0.17, so many flagged applicants would not actually default. This is a deliberate recall-over-precision tradeoff, but a real system would need a manual-review process.
+- **Scores are not calibrated probabilities:** Because the model uses `scale_pos_weight` to handle the 92/8 imbalance, its output scores are inflated relative to real default rates (the average score sits near 0.5, not 0.08). They are suitable for ranking applicants by risk, but a score of 0.31 should not be read as "31% chance of default". Calibration would be needed before using scores as probabilities.
 
 ## Tech Stack
 
@@ -127,10 +137,20 @@ home-credit-default-risk-prediction/
 ├── README.md
 ├── notebooks/
 │   ├── phase1_eda_baseline.ipynb
-│   └── phase2_modeling.ipynb
+│   ├── phase2_modeling.ipynb
+│   └── phase1b_leakage_fix.ipynb
 ├── docs/
 │   ├── Phase1_Documentation.md
-│   └── Phase2_Documentation.md
+│   ├── Phase2_Documentation.md
+│   ├── shap_summary.png
+│   ├── shap_local_example.png
+│   └── shap_days_birth.png
+├── artifacts/
+│   ├── xgb_model.pkl
+│   ├── medians.pkl
+│   ├── freq_maps.pkl
+│   ├── train_columns.pkl
+│   └── config.pkl
 └── requirements.txt
 ```
 
