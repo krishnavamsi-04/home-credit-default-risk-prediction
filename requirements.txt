@@ -1,13 +1,13 @@
-pandas
-numpy
-scikit-learn
-xgboost
+pandas==2.2.3
+numpy==2.1.3
+scikit-learn==1.6.1
+xgboost==3.4.1
 shap
 joblib
 matplotlib
 seaborn
 
-# Phase 3 (deployment) — not yet used
+# Phase 3 (deployment) - not yet used
 # fastapi
 # uvicorn
 # streamlit
